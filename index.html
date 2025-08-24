@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<!--
+  Married Couple Living Trust NPV Calculator 
+  Copyright (C) 2025 Dean Brettle
+  
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as
+  published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version.
+  
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+  
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Living Trust NPV Calculator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for rendering formulas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for better aesthetics */
+        .input-group label {
+            @apply text-sm font-medium text-gray-700 mb-1;
+        }
+        .input-group input, .input-group select {
+            @apply w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition;
+        }
+        h1, h2, h3 {
+             @apply text-slate-800;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+        <div class="bg-white p-8 rounded-2xl shadow-lg">
+            <header class="text-center mb-8">
+                <h1 class="text-3xl sm:text-4xl font-bold text-indigo-700">Living Trust NPV Calculator</h1>
+                <p class="mt-2 text-md text-gray-600">Estimate the financial benefit of a living trust for avoiding probate in a near-simultaneous death scenario.</p>
+            </header>
+
+            <!-- Main form for user inputs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">
+                <!-- Financial Inputs -->
+                <div class="input-group">
+                    <label for="assets">Total Joint Assets ($)</label>
+                    <input type="number" id="assets" value="5000000" class="text-right">
+                </div>
+                <div class="input-group">
+                    <label for="trustCost">Trust Setup Cost ($)</label>
+                    <input type="number" id="trustCost" value="4000" class="text-right">
+                </div>
+                <div class="input-group">
+                    <label for="probateFee">Probate Fee (%)</label>
+                    <input type="number" id="probateFee" value="2.5" step="0.1" class="text-right">
+                </div>
+                <div class="input-group">
+                    <label for="discountRate">Annual Discount Rate (%)</label>
+                    <input type="number" id="discountRate" value="6.75" step="0.1" class="text-right">
+                </div>
+
+                <!-- Person 1 Inputs -->
+                <div class="input-group">
+                    <label for="p1Age">Person 1 Age</label>
+                    <input type="number" id="p1Age" value="55">
+                </div>
+                <div class="input-group">
+                    <label for="p1Gender">Person 1 Gender</label>
+                    <select id="p1Gender">
+                        <option value="male" selected>Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+
+                <!-- Person 2 Inputs -->
+                <div class="input-group">
+                    <label for="p2Age">Person 2 Age</label>
+                    <input type="number" id="p2Age" value="56">
+                </div>
+                <div class="input-group">
+                    <label for="p2Gender">Person 2 Gender</label>
+                    <select id="p2Gender">
+                        <option value="female" selected>Female</option>
+                        <option value="male">Male</option>
+                    </select>
+                </div>
+
+                <!-- Probability Inputs -->
+                <div class="input-group">
+                    <label for="accidentProb">P(1st Death is Auto Accident) (%)</label>
+                    <input type="number" id="accidentProb" value="1.3" step="0.1" class="text-right">
+                </div>
+                <div class="input-group">
+                    <label for="simulAccidentProb">P(Simul. Death | Auto Accident) (%)</label>
+                    <input type="number" id="simulAccidentProb" value="100" step="1" class="text-right">
+                </div>
+                <div class="input-group">
+                    <label for="maxDays">Max Days for "Simultaneous" Death</label>
+                    <input type="number" id="maxDays" value="30">
+                </div>
+                <div class="input-group">
+                    <label for="brokenHeartOR">"Broken Heart" Odds Ratio</label>
+                    <input type="number" id="brokenHeartOR" value="1.9" step="0.1">
+                </div>
+            </div>
+
+            <!-- Calculate Button -->
+            <button id="calculateBtn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                Calculate NPV
+            </button>
+
+            <!-- Result Display -->
+            <div id="result" class="text-center mt-10 p-6 bg-indigo-50 border-2 border-indigo-200 rounded-xl" style="display: none;">
+                <h2 class="text-xl font-semibold text-indigo-800">Net Present Value (NPV)</h2>
+                <div id="result-value" class="text-5xl font-bold mt-2">$0.00</div>
+            </div>
+        </div>
+
+        <!-- Explanation Section -->
+        <div id="explanation" class="mt-8 bg-white p-8 rounded-2xl shadow-lg">
+            <h2 class="text-2xl font-bold border-b-2 border-gray-200 pb-2 mb-4">How the NPV is Calculated</h2>
+            <div class="space-y-6 text-gray-700">
+                <div class="explanation-section">
+                    The Net Present Value (NPV) represents the total financial benefit of setting up a trust today, considering the time value of money. A positive NPV suggests that, based on the input assumptions, setting up the trust is financially beneficial for this specific scenario. The formula is:
+                    $$NPV = (\text{Present Value of Avoided Probate Costs}) - (\text{Upfront Cost of Trust})$$
+                </div>
+                <div class="explanation-section">
+                    <h3 class="text-lg font-semibold mb-2">1. Calculating the Annual Probability of the Event</h3>
+                    <p>The core of the calculation is determining the probability, for each future year, that the "near-simultaneous death" event occurs. This involves several steps:</p>
+                    <ol class="list-decimal list-inside space-y-2 mt-2 pl-4">
+                        <li><strong>Probability of First Death:</strong> For each year 't' in the future, we calculate the probability that both people are alive at the start of that year, and that exactly one of them dies while the other survives the year. Let's call this \(P(\text{FirstDeath}_t)\).</li>
+                        <li><strong>Probability of Survivor's Death (Other Causes):</strong> We calculate the baseline probability that the surviving partner dies within the specified number of days due to natural causes. This uses the survivor's age and the "Broken-heart Syndrome" odds ratio, which increases the baseline probability of death shortly after a spouse's passing. Let's call this \(P(\text{SimulDeath | OtherCause})\).</li>
+                        <li><strong>Combined Annual Probability:</strong> We combine the probabilities based on the cause of the first death:
+                            <ul class="list-disc list-inside mt-2 pl-6 space-y-1">
+                                <li><strong>Scenario A (Auto Accident):</strong> \(P(\text{FirstDeath}_t) \times P(\text{AutoAccident}) \times P(\text{SimulDeath | AutoAccident})\)</li>
+                                <li><strong>Scenario B (Other Causes):</strong> \(P(\text{FirstDeath}_t) \times (1 - P(\text{AutoAccident})) \times P(\text{SimulDeath | OtherCause})\)</li>
+                            </ul>
+                            The sum of Scenario A and B gives the total probability of the event happening in year \(t\), which we'll call \(P(\text{Event}_t)\).
+                        </li>
+                    </ol>
+                </div>
+                <div class="explanation-section">
+                    <h3 class="text-lg font-semibold mb-2">2. Calculating the Present Value</h3>
+                    <p>For each future year 't':</p>
+                    <ol class="list-decimal list-inside space-y-2 mt-2 pl-4">
+                        <li><strong>Future Cost of Probate:</strong> This is the potential cost if the event happens in year \(t\). It is calculated as:
+                            $$\text{FutureCost} = (\text{Total Assets}) \times (\text{Probate Fee \%})$$
+                        </li>
+                        <li><strong>Expected Cost in Year t:</strong> We multiply the future cost by the probability of the event occurring in that year:
+                            $$\text{ExpectedCost}_t = \text{FutureCost} \times P(\text{Event}_t)$$
+                        </li>
+                        <li><strong>Present Value for Year t:</strong> We "discount" this future expected cost back to its value today using the discount rate 'r'. This accounts for the principle that money today is worth more than money in the future.
+                            $$PV_t = \frac{\text{ExpectedCost}_t}{(1 + r)^t}$$
+                        </li>
+                    </ol>
+                </div>
+                <div class="explanation-section">
+                    <h3 class="text-lg font-semibold mb-2">3. Final NPV Calculation</h3>
+                    <p>We sum the present values (\(PV_t\)) for every future year to get the <strong>Total Present Value of Avoided Probate Costs</strong>. Finally, we subtract the one-time, upfront cost of setting up the trust to arrive at the Net Present Value.</p>
+                </div>
+                <div class="citation border-t-2 border-gray-200 pt-4 mt-6">
+                    <p class="text-sm text-gray-600"><strong>Actuarial Data Source:</strong> The probabilities of death and survival are based on the <strong>2019 Period Life Table for the Social Security Administration</strong>. These tables provide the probability of a person at a certain age dying before their next birthday.</p>
+                    <p class="text-sm text-gray-500 mt-2"><em>Disclaimer: This is a financial modeling tool for informational purposes only. The results are based on the provided assumptions and should not be considered financial, legal, or estate planning advice. Consult with qualified professionals before making any decisions.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Actuarial Data: 2019 SSA Period Life Tables
+    // Source: https://www.ssa.gov/oact/STATS/table4c6.html
+    // qx: probability of dying within one year
+    // lx: number of lives surviving to age x, out of 100,000
+    const lifeTable = {
+        male: [
+            { age: 0, qx: 0.006082, lx: 100000 }, { age: 1, qx: 0.00041, lx: 99392 }, { age: 2, qx: 0.000263, lx: 99351 }, { age: 3, qx: 0.000201, lx: 99325 }, { age: 4, qx: 0.000155, lx: 99305 }, { age: 5, qx: 0.000135, lx: 99290 }, { age: 6, qx: 0.000125, lx: 99276 }, { age: 7, qx: 0.000118, lx: 99264 }, { age: 8, qx: 0.000111, lx: 99252 }, { age: 9, qx: 0.000103, lx: 99241 }, { age: 10, qx: 0.000099, lx: 99231 }, { age: 11, qx: 0.000104, lx: 99221 }, { age: 12, qx: 0.000125, lx: 99211 }, { age: 13, qx: 0.000171, lx: 99198 }, { age: 14, qx: 0.000244, lx: 99181 }, { age: 15, qx: 0.00034, lx: 99157 }, { age: 16, qx: 0.000451, lx: 99123 }, { age: 17, qx: 0.000566, lx: 99079 }, { age: 18, qx: 0.000673, lx: 99023 }, { age: 19, qx: 0.000762, lx: 98956 }, { age: 20, qx: 0.000839, lx: 98881 }, { age: 21, qx: 0.000908, lx: 98800 }, { age: 22, qx: 0.000962, lx: 98710 }, { age: 23, qx: 0.001001, lx: 98615 }, { age: 24, qx: 0.001033, lx: 98516 }, { age: 25, qx: 0.001064, lx: 98414 }, { age: 26, qx: 0.001095, lx: 98309 }, { age: 27, qx: 0.001126, lx: 98202 }, { age: 28, qx: 0.001158, lx: 98091 }, { age: 29, qx: 0.00119, lx: 97977 }, { age: 30, qx: 0.001222, lx: 97861 }, { age: 31, qx: 0.001257, lx: 97741 }, { age: 32, qx: 0.001297, lx: 97618 }, { age: 33, qx: 0.001344, lx: 97491 }, { age: 34, qx: 0.0014, lx: 97360 }, { age: 35, qx: 0.001469, lx: 97224 }, { age: 36, qx: 0.001551, lx: 97081 }, { age: 37, qx: 0.001646, lx: 96931 }, { age: 38, qx: 0.00175, lx: 96771 }, { age: 39, qx: 0.00186, lx: 96602 }, { age: 40, qx: 0.001974, lx: 96422 }, { age: 41, qx: 0.0021, lx: 96232 }, { age: 42, qx: 0.002243, lx: 96029 }, { age: 43, qx: 0.002409, lx: 95814 }, { age: 44, qx: 0.002601, lx: 95584 }, { age: 45, qx: 0.002816, lx: 95335 }, { age: 46, qx: 0.003051, lx: 95067 }, { age: 47, qx: 0.003306, lx: 94777 }, { age: 48, qx: 0.003586, lx: 94464 }, { age: 49, qx: 0.003899, lx: 94125 }, { age: 50, qx: 0.004253, lx: 93758 }, { age: 51, qx: 0.004652, lx: 93359 }, { age: 52, qx: 0.005088, lx: 92925 }, { age: 53, qx: 0.005553, lx: 92452 }, { age: 54, qx: 0.006041, lx: 91939 }, { age: 55, qx: 0.006549, lx: 91383 }, { age: 56, qx: 0.007083, lx: 90785 }, { age: 57, qx: 0.007653, lx: 90142 }, { age: 58, qx: 0.008271, lx: 89453 }, { age: 59, qx: 0.008945, lx: 88713 }, { age: 60, qx: 0.009665, lx: 87919 }, { age: 61, qx: 0.01041, lx: 87070 }, { age: 62, qx: 0.011165, lx: 86164 }, { age: 63, qx: 0.011945, lx: 85202 }, { age: 64, qx: 0.012781, lx: 84185 }, { age: 65, qx: 0.01371, lx: 83110 }, { age: 66, qx: 0.014761, lx: 81970 }, { age: 67, qx: 0.015941, lx: 80759 }, { age: 68, qx: 0.01726, lx: 79475 }, { age: 69, qx: 0.018728, lx: 78103 }, { age: 70, qx: 0.020361, lx: 76641 }, { age: 71, qx: 0.022192, lx: 75082 }, { age: 72, qx: 0.024249, lx: 73415 }, { age: 73, qx: 0.02657, lx: 71635 }, { age: 74, qx: 0.029193, lx: 69730 }, { age: 75, qx: 0.032159, lx: 67694 }, { age: 76, qx: 0.035489, lx: 65519 }, { age: 77, qx: 0.039213, lx: 63193 }, { age: 78, qx: 0.043372, lx: 60714 }, { age: 79, qx: 0.04802, lx: 58081 }, { age: 80, qx: 0.053224, lx: 55291 }, { age: 81, qx: 0.059048, lx: 52350 }, { age: 82, qx: 0.06554, lx: 49257 }, { age: 83, qx: 0.072714, lx: 46029 }, { age: 84, qx: 0.080572, lx: 42681 }, { age: 85, qx: 0.089104, lx: 39247 }, { age: 86, qx: 0.098292, lx: 35748 }, { age: 87, qx: 0.10811, lx: 32230 }, { age: 88, qx: 0.118521, lx: 28746 }, { age: 89, qx: 0.129481, lx: 25338 }, { age: 90, qx: 0.14094, lx: 22059 }, { age: 91, qx: 0.152848, lx: 18954 }, { age: 92, qx: 0.165158, lx: 16056 }, { age: 93, qx: 0.177821, lx: 13404 }, { age: 94, qx: 0.19079, lx: 11020 }, { age: 95, qx: 0.204018, lx: 8918 }, { age: 96, qx: 0.217462, lx: 7099 }, { age: 97, qx: 0.231078, lx: 5555 }, { age: 98, qx: 0.244827, lx: 4271 }, { age: 99, qx: 0.258673, lx: 3225 }, { age: 100, qx: 0.272583, lx: 2391 }, { age: 101, qx: 0.286529, lx: 1740 }, { age: 102, qx: 0.300486, lx: 1241 }, { age: 103, qx: 0.31443, lx: 868 }, { age: 104, qx: 0.328339, lx: 595 }, { age: 105, qx: 0.342191, lx: 399 }, { age: 106, qx: 0.355966, lx: 263 }, { age: 107, qx: 0.369646, lx: 169 }, { age: 108, qx: 0.383214, lx: 107 }, { age: 109, qx: 0.396657, lx: 66 }, { age: 110, qx: 0.409961, lx: 40 }, { age: 111, qx: 0.423115, lx: 23 }, { age: 112, qx: 0.436109, lx: 13 }, { age: 113, qx: 0.448934, lx: 8 }, { age: 114, qx: 0.461582, lx: 4 }, { age: 115, qx: 0.474046, lx: 2 }, { age: 116, qx: 0.48632, lx: 1 }, { age: 117, qx: 0.498398, lx: 1 }, { age: 118, qx: 0.510276, lx: 0 }, { age: 119, qx: 0.52195, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 }
+        ],
+        female: [
+            { age: 0, qx: 0.005118, lx: 100000 }, { age: 1, qx: 0.000355, lx: 99488 }, { age: 2, qx: 0.000219, lx: 99453 }, { age: 3, qx: 0.000161, lx: 99431 }, { age: 4, qx: 0.000127, lx: 99415 }, { age: 5, qx: 0.00011, lx: 99402 }, { age: 6, qx: 0.000101, lx: 99391 }, { age: 7, qx: 0.000095, lx: 99381 }, { age: 8, qx: 0.000091, lx: 99372 }, { age: 9, qx: 0.000088, lx: 99363 }, { age: 10, qx: 0.000088, lx: 99354 }, { age: 11, qx: 0.000094, lx: 99345 }, { age: 12, qx: 0.00011, lx: 99336 }, { age: 13, qx: 0.00014, lx: 99325 }, { age: 14, qx: 0.000185, lx: 99311 }, { age: 15, qx: 0.00024, lx: 99293 }, { age: 16, qx: 0.000299, lx: 99269 }, { age: 17, qx: 0.000355, lx: 99239 }, { age: 18, qx: 0.000401, lx: 99204 }, { age: 19, qx: 0.000434, lx: 99164 }, { age: 20, qx: 0.000458, lx: 99121 }, { age: 21, qx: 0.000475, lx: 99076 }, { age: 22, qx: 0.000489, lx: 99029 }, { age: 23, qx: 0.000501, lx: 98980 }, { age: 24, qx: 0.000514, lx: 98931 }, { age: 25, qx: 0.000529, lx: 98880 }, { age: 26, qx: 0.000547, lx: 98828 }, { age: 27, qx: 0.000569, lx: 98774 }, { age: 28, qx: 0.000595, lx: 98717 }, { age: 29, qx: 0.000624, lx: 98659 }, { age: 30, qx: 0.000656, lx: 98597 }, { age: 31, qx: 0.000693, lx: 98532 }, { age: 32, qx: 0.000735, lx: 98464 }, { age: 33, qx: 0.000783, lx: 98392 }, { age: 34, qx: 0.000838, lx: 98315 }, { age: 35, qx: 0.000901, lx: 98232 }, { age: 36, qx: 0.00097, lx: 98144 }, { age: 37, qx: 0.001045, lx: 98048 }, { age: 38, qx: 0.001124, lx: 97946 }, { age: 39, qx: 0.001206, lx: 97836 }, { age: 40, qx: 0.00129, lx: 97718 }, { age: 41, qx: 0.001379, lx: 97592 }, { age: 42, qx: 0.001476, lx: 97457 }, { age: 43, qx: 0.001584, lx: 97313 }, { age: 44, qx: 0.001705, lx: 97159 }, { age: 45, qx: 0.001839, lx: 96994 }, { age: 46, qx: 0.001988, lx: 96815 }, { age: 47, qx: 0.002154, lx: 96623 }, { age: 48, qx: 0.002341, lx: 96415 }, { age: 49, qx: 0.002551, lx: 96189 }, { age: 50, qx: 0.002787, lx: 95944 }, { age: 51, qx: 0.00305, lx: 95676 }, { age: 52, qx: 0.00334, lx: 95385 }, { age: 53, qx: 0.003652, lx: 95066 }, { age: 54, qx: 0.003984, lx: 94719 }, { age: 55, qx: 0.004337, lx: 94342 }, { age: 56, qx: 0.004711, lx: 93933 }, { age: 57, qx: 0.005106, lx: 93490 }, { age: 58, qx: 0.005523, lx: 93013 }, { age: 59, qx: 0.005963, lx: 92499 }, { age: 60, qx: 0.006429, lx: 91948 }, { age: 61, qx: 0.006927, lx: 91357 }, { age: 62, qx: 0.00747, lx: 90724 }, { age: 63, qx: 0.008069, lx: 90046 }, { age: 64, qx: 0.008742, lx: 89319 }, { age: 65, qx: 0.009503, lx: 88539 }, { age: 66, qx: 0.010359, lx: 87698 }, { age: 67, qx: 0.01131, lx: 86790 }, { age: 68, qx: 0.01236, lx: 85809 }, { age: 69, qx: 0.013511, lx: 84749 }, { age: 70, qx: 0.014781, lx: 83605 }, { age: 71, qx: 0.01619, lx: 82369 }, { age: 72, qx: 0.017772, lx: 81036 }, { age: 73, qx: 0.01957, lx: 79596 }, { age: 74, qx: 0.021631, lx: 78038 }, { age: 75, qx: 0.024003, lx: 76350 }, { age: 76, qx: 0.026727, lx: 74518 }, { age: 77, qx: 0.029841, lx: 72526 }, { age: 78, qx: 0.033379, lx: 70362 }, { age: 79, qx: 0.03738, lx: 68009 }, { age: 80, qx: 0.04188, lx: 65467 }, { age: 81, qx: 0.046914, lx: 62723 }, { age: 82, qx: 0.05251, lx: 59779 }, { age: 83, qx: 0.058686, lx: 56639 }, { age: 84, qx: 0.065452, lx: 53319 }, { age: 85, qx: 0.07281, lx: 49827 }, { age: 86, qx: 0.080749, lx: 46197 }, { age: 87, qx: 0.089255, lx: 42467 }, { age: 88, qx: 0.098311, lx: 38673 }, { age: 89, qx: 0.107897, lx: 34869 }, { age: 90, qx: 0.118002, lx: 31109 }, { age: 91, qx: 0.12861, lx: 27438 }, { age: 92, qx: 0.139706, lx: 23908 }, { age: 93, qx: 0.151278, lx: 20567 }, { age: 94, qx: 0.163316, lx: 17454 }, { age: 95, qx: 0.17581, lx: 14603 }, { age: 96, qx: 0.188748, lx: 12036 }, { age: 97, qx: 0.202123, lx: 9765 }, { age: 98, qx: 0.215923, lx: 7791 }, { age: 99, qx: 0.230138, lx: 6110 }, { age: 100, qx: 0.244758, lx: 4704 }, { age: 101, qx: 0.259771, lx: 3553 }, { age: 102, qx: 0.275165, lx: 2630 }, { age: 103, qx: 0.290929, lx: 1906 }, { age: 104, qx: 0.30705, lx: 1352 }, { age: 105, qx: 0.323517, lx: 937 }, { age: 106, qx: 0.340318, lx: 634 }, { age: 107, qx: 0.357442, lx: 418 }, { age: 108, qx: 0.374878, lx: 268 }, { age: 109, qx: 0.392615, lx: 168 }, { age: 110, qx: 0.410642, lx: 102 }, { age: 111, qx: 0.428949, lx: 60 }, { age: 112, qx: 0.447525, lx: 34 }, { age: 113, qx: 0.466359, lx: 19 }, { age: 114, qx: 0.485442, lx: 10 }, { age: 115, qx: 0.504764, lx: 5 }, { age: 116, qx: 0.524314, lx: 3 }, { age: 117, qx: 0.544083, lx: 1 }, { age: 118, qx: 0.56406, lx: 1 }, { age: 119, qx: 0.584236, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 }
+        ]
+    };
+
+    document.getElementById('calculateBtn').addEventListener('click', calculateAndDisplay);
+
+    // Run calculation once on page load with default values
+    document.addEventListener('DOMContentLoaded', calculateAndDisplay);
+
+    function getLifeTableData(age, gender) {
+        const table = lifeTable[gender];
+        // Handle ages outside the table bounds
+        if (age < 0) return table[0];
+        if (age >= table.length) {
+            // For ages beyond the table, assume certain death
+            return { age: age, qx: 1.0, lx: 0 };
+        }
+        return table.find(row => row.age === age) || table[table.length - 1];
+    }
+
+    function calculateAndDisplay() {
+        // --- 1. Get User Inputs and convert to numbers ---
+        const totalAssets = parseFloat(document.getElementById('assets').value);
+        const trustCost = parseFloat(document.getElementById('trustCost').value);
+        const probateFee = parseFloat(document.getElementById('probateFee').value) / 100;
+        const discountRate = parseFloat(document.getElementById('discountRate').value) / 100;
+
+        const p1 = {
+            age: parseInt(document.getElementById('p1Age').value),
+            gender: document.getElementById('p1Gender').value
+        };
+        const p2 = {
+            age: parseInt(document.getElementById('p2Age').value),
+            gender: document.getElementById('p2Gender').value
+        };
+
+        const probAccident = parseFloat(document.getElementById('accidentProb').value) / 100;
+        const probSimulGivenAccident = parseFloat(document.getElementById('simulAccidentProb').value) / 100;
+        const maxDays = parseInt(document.getElementById('maxDays').value);
+        const brokenHeartOR = parseFloat(document.getElementById('brokenHeartOR').value);
+
+        // --- 2. Core NPV Calculation ---
+        const maxAge = 120;
+        let totalPV = 0;
+        const futureProbateCost = totalAssets * probateFee;
+        
+        // Get initial number of lives for probability calculations
+        const l_p1_initial = getLifeTableData(p1.age, p1.gender).lx;
+        const l_p2_initial = getLifeTableData(p2.age, p2.gender).lx;
+
+        // Loop through each future year until it's highly improbable for either person to be alive
+        for (let t = 1; (p1.age + t <= maxAge + 1) && (p2.age + t <= maxAge + 1); t++) {
+            const currentAgeP1 = p1.age + t - 1;
+            const currentAgeP2 = p2.age + t - 1;
+
+            if (l_p1_initial === 0 || l_p2_initial === 0) continue;
+
+            // --- Probabilities for year t ---
+            const q_p1_t = getLifeTableData(currentAgeP1, p1.gender).qx; // P(p1 dies in year t | alive at start)
+            const q_p2_t = getLifeTableData(currentAgeP2, p2.gender).qx; // P(p2 dies in year t | alive at start)
+            
+            // Probability both were alive at the start of year t
+            const l_p1_t_minus_1 = getLifeTableData(currentAgeP1, p1.gender).lx;
+            const l_p2_t_minus_1 = getLifeTableData(currentAgeP2, p2.gender).lx;
+            const probBothAliveStartOfYear = (l_p1_t_minus_1 / l_p1_initial) * (l_p2_t_minus_1 / l_p2_initial);
+            
+            if (isNaN(probBothAliveStartOfYear) || probBothAliveStartOfYear <= 0) break;
+
+            // Probability of exactly one death during year t, given both alive at start
+            const probExactlyOneDies = (q_p1_t * (1 - q_p2_t)) + (q_p2_t * (1 - q_p1_t));
+            
+            // Overall probability of the first death occurring in year t
+            const probFirstDeathInYearT = probBothAliveStartOfYear * probExactlyOneDies;
+
+            if (probFirstDeathInYearT === 0) continue;
+
+            // --- Probability of near-simultaneous death, given first death in year t ---
+            
+            // P(SimulDeath | OtherCause) - Calculate for both potential survivors
+            const q_survivor1 = getLifeTableData(currentAgeP1, p1.gender).qx;
+            const q_survivor2 = getLifeTableData(currentAgeP2, p2.gender).qx;
+
+            // P(survivor dies in N days) = 1 - (1 - annual_q)^(N/365.25)
+            const probDeathInNdays1 = 1 - Math.pow(1 - q_survivor1, maxDays / 365.25);
+            const probDeathInNdays2 = 1 - Math.pow(1 - q_survivor2, maxDays / 365.25);
+            
+            // Apply Broken Heart odds ratio
+            const odds1 = probDeathInNdays1 / (1 - probDeathInNdays1);
+            const odds2 = probDeathInNdays2 / (1 - probDeathInNdays2);
+            const probSimulGivenOtherCause1 = (odds1 * brokenHeartOR) / (1 + (odds1 * brokenHeartOR));
+            const probSimulGivenOtherCause2 = (odds2 * brokenHeartOR) / (1 + (odds2 * brokenHeartOR));
+            
+            // Weighted average of the two survivor probabilities
+            const weight1 = (q_p2_t * (1 - q_p1_t)) / probExactlyOneDies; // p2 dies first, p1 is survivor
+            const weight2 = (q_p1_t * (1 - q_p2_t)) / probExactlyOneDies; // p1 dies first, p2 is survivor
+            const probSimulGivenOtherCause = (probSimulGivenOtherCause1 * weight1) + (probSimulGivenOtherCause2 * weight2);
+            
+            const probSimulDeathOverall = (probAccident * probSimulGivenAccident) + ((1 - probAccident) * probSimulGivenOtherCause);
+
+            // --- Expected Cost and PV for Year t ---
+            const annualProbOfEvent = probFirstDeathInYearT * probSimulDeathOverall;
+            const expectedCostInYearT = futureProbateCost * annualProbOfEvent;
+            const pvForYearT = expectedCostInYearT / Math.pow(1 + discountRate, t);
+
+            totalPV += pvForYearT;
+        }
+
+        const npv = totalPV - trustCost;
+
+        // --- 3. Display Results ---
+        const resultDiv = document.getElementById('result');
+        const resultValue = document.getElementById('result-value');
+        
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+
+        resultValue.textContent = formatter.format(npv);
+        resultValue.style.color = npv >= 0 ? 'rgb(22 163 74)' : 'rgb(220 38 38)'; // green-600 or red-600
+        resultDiv.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
