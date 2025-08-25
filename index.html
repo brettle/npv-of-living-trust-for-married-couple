@@ -34,6 +34,10 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -42,7 +46,7 @@
         <div class="bg-white p-8 rounded-2xl shadow-lg">
             <header class="text-center mb-8">
                 <h1 class="text-3xl sm:text-4xl font-bold text-indigo-700">Living Trust NPV Calculator</h1>
-                <p class="mt-2 text-md text-gray-600">Estimate the financial benefit of a living trust for avoiding probate in a near-simultaneous death scenario.</p>
+                <p class="mt-2 text-md text-gray-600">Estimate the financial benefit of a living trust and the optimal time to create one.</p>
             </header>
 
             <!-- Main form for user inputs -->
@@ -50,7 +54,7 @@
                 <!-- Financial Inputs -->
                 <div class="input-group">
                     <label for="assets" class="text-sm font-medium text-gray-700 mb-1">Total Joint Assets ($)</label>
-                    <input type="number" id="assets" value="100000" class="text-right w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <input type="number" id="assets" value="5000000" class="text-right w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition">
                 </div>
                 <div class="input-group">
                     <label for="trustCost" class="text-sm font-medium text-gray-700 mb-1">Trust Setup Cost ($)</label>
@@ -112,14 +116,38 @@
 
             <!-- Calculate Button -->
             <button id="calculateBtn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
-                Calculate NPV
+                Calculate NPV & Optimal Age
             </button>
 
             <!-- Result Display -->
-            <div id="result" class="text-center mt-10 p-6 bg-indigo-50 border-2 border-indigo-200 rounded-xl" style="display: none;">
-                <h2 class="text-xl font-semibold text-indigo-800">Net Present Value (NPV)</h2>
+            <div id="result" class="text-center mt-10 p-6 bg-gray-50 border-2 border-gray-200 rounded-xl" style="display: none;">
+                <h2 class="text-xl font-semibold text-gray-800">NPV if Trust is Created Today</h2>
                 <div id="result-value" class="text-5xl font-bold mt-2">$0.00</div>
             </div>
+            
+            <!-- Optimization Result Display -->
+            <div id="optimization-result" class="mt-8" style="display: none;">
+                <div class="text-center p-6 bg-indigo-50 border-2 border-indigo-200 rounded-xl">
+                     <h2 class="text-xl font-semibold text-indigo-800">Optimal Time to Create Trust</h2>
+                     <p id="optimization-summary" class="mt-2 text-lg"></p>
+                </div>
+                <div class="mt-6 table-container">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Person 1 Age</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Person 2 Age</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">NPV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optimization-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows will be injected here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- Explanation Section -->
@@ -161,8 +189,9 @@
                     </ol>
                 </div>
                 <div class="explanation-section">
-                    <h3 class="text-lg font-semibold mb-2 text-slate-800">3. Final NPV Calculation</h3>
-                    <p>We sum the present values (\(PV_t\)) for every future year to get the <strong>Total Present Value of Avoided Probate Costs</strong>. Finally, we subtract the one-time, upfront cost of setting up the trust to arrive at the Net Present Value.</p>
+                    <h3 class="text-lg font-semibold mb-2 text-slate-800">3. Calculating the Optimal Age</h3>
+                     <p>To find the optimal age, the calculator computes the NPV for creating the trust in each future year. When calculating the NPV for a future year, it accounts for the risk of the event occurring *before* the trust is created. This "cost of waiting" is subtracted from the potential future benefits.</p>
+                    <p>The optimal age is the point where the NPV is highest, balancing the benefit of deferring the setup cost against the increasing risk of incurring probate fees over time.</p>
                 </div>
                 <div class="citation border-t-2 border-gray-200 pt-4 mt-6">
                     <p class="text-sm text-gray-600"><strong>Actuarial Data Source:</strong> The probabilities of death and survival are based on the <strong>2019 Period Life Table for the Social Security Administration</strong>. These tables provide the probability of a person at a certain age dying before their next birthday.</p>
@@ -175,137 +204,192 @@
 <script>
     // Actuarial Data: 2019 SSA Period Life Tables
     // Source: https://www.ssa.gov/oact/STATS/table4c6.html
-    // qx: probability of dying within one year
-    // lx: number of lives surviving to age x, out of 100,000
     const lifeTable = {
-        male: [
-            { age: 0, qx: 0.006082, lx: 100000 }, { age: 1, qx: 0.00041, lx: 99392 }, { age: 2, qx: 0.000263, lx: 99351 }, { age: 3, qx: 0.000201, lx: 99325 }, { age: 4, qx: 0.000155, lx: 99305 }, { age: 5, qx: 0.000135, lx: 99290 }, { age: 6, qx: 0.000125, lx: 99276 }, { age: 7, qx: 0.000118, lx: 99264 }, { age: 8, qx: 0.000111, lx: 99252 }, { age: 9, qx: 0.000103, lx: 99241 }, { age: 10, qx: 0.000099, lx: 99231 }, { age: 11, qx: 0.000104, lx: 99221 }, { age: 12, qx: 0.000125, lx: 99211 }, { age: 13, qx: 0.000171, lx: 99198 }, { age: 14, qx: 0.000244, lx: 99181 }, { age: 15, qx: 0.00034, lx: 99157 }, { age: 16, qx: 0.000451, lx: 99123 }, { age: 17, qx: 0.000566, lx: 99079 }, { age: 18, qx: 0.000673, lx: 99023 }, { age: 19, qx: 0.000762, lx: 98956 }, { age: 20, qx: 0.000839, lx: 98881 }, { age: 21, qx: 0.000908, lx: 98800 }, { age: 22, qx: 0.000962, lx: 98710 }, { age: 23, qx: 0.001001, lx: 98615 }, { age: 24, qx: 0.001033, lx: 98516 }, { age: 25, qx: 0.001064, lx: 98414 }, { age: 26, qx: 0.001095, lx: 98309 }, { age: 27, qx: 0.001126, lx: 98202 }, { age: 28, qx: 0.001158, lx: 98091 }, { age: 29, qx: 0.00119, lx: 97977 }, { age: 30, qx: 0.001222, lx: 97861 }, { age: 31, qx: 0.001257, lx: 97741 }, { age: 32, qx: 0.001297, lx: 97618 }, { age: 33, qx: 0.001344, lx: 97491 }, { age: 34, qx: 0.0014, lx: 97360 }, { age: 35, qx: 0.001469, lx: 97224 }, { age: 36, qx: 0.001551, lx: 97081 }, { age: 37, qx: 0.001646, lx: 96931 }, { age: 38, qx: 0.00175, lx: 96771 }, { age: 39, qx: 0.00186, lx: 96602 }, { age: 40, qx: 0.001974, lx: 96422 }, { age: 41, qx: 0.0021, lx: 96232 }, { age: 42, qx: 0.002243, lx: 96029 }, { age: 43, qx: 0.002409, lx: 95814 }, { age: 44, qx: 0.002601, lx: 95584 }, { age: 45, qx: 0.002816, lx: 95335 }, { age: 46, qx: 0.003051, lx: 95067 }, { age: 47, qx: 0.003306, lx: 94777 }, { age: 48, qx: 0.003586, lx: 94464 }, { age: 49, qx: 0.003899, lx: 94125 }, { age: 50, qx: 0.004253, lx: 93758 }, { age: 51, qx: 0.004652, lx: 93359 }, { age: 52, qx: 0.005088, lx: 92925 }, { age: 53, qx: 0.005553, lx: 92452 }, { age: 54, qx: 0.006041, lx: 91939 }, { age: 55, qx: 0.006549, lx: 91383 }, { age: 56, qx: 0.007083, lx: 90785 }, { age: 57, qx: 0.007653, lx: 90142 }, { age: 58, qx: 0.008271, lx: 89453 }, { age: 59, qx: 0.008945, lx: 88713 }, { age: 60, qx: 0.009665, lx: 87919 }, { age: 61, qx: 0.01041, lx: 87070 }, { age: 62, qx: 0.011165, lx: 86164 }, { age: 63, qx: 0.011945, lx: 85202 }, { age: 64, qx: 0.012781, lx: 84185 }, { age: 65, qx: 0.01371, lx: 83110 }, { age: 66, qx: 0.014761, lx: 81970 }, { age: 67, qx: 0.015941, lx: 80759 }, { age: 68, qx: 0.01726, lx: 79475 }, { age: 69, qx: 0.018728, lx: 78103 }, { age: 70, qx: 0.020361, lx: 76641 }, { age: 71, qx: 0.022192, lx: 75082 }, { age: 72, qx: 0.024249, lx: 73415 }, { age: 73, qx: 0.02657, lx: 71635 }, { age: 74, qx: 0.029193, lx: 69730 }, { age: 75, qx: 0.032159, lx: 67694 }, { age: 76, qx: 0.035489, lx: 65519 }, { age: 77, qx: 0.039213, lx: 63193 }, { age: 78, qx: 0.043372, lx: 60714 }, { age: 79, qx: 0.04802, lx: 58081 }, { age: 80, qx: 0.053224, lx: 55291 }, { age: 81, qx: 0.059048, lx: 52350 }, { age: 82, qx: 0.06554, lx: 49257 }, { age: 83, qx: 0.072714, lx: 46029 }, { age: 84, qx: 0.080572, lx: 42681 }, { age: 85, qx: 0.089104, lx: 39247 }, { age: 86, qx: 0.098292, lx: 35748 }, { age: 87, qx: 0.10811, lx: 32230 }, { age: 88, qx: 0.118521, lx: 28746 }, { age: 89, qx: 0.129481, lx: 25338 }, { age: 90, qx: 0.14094, lx: 22059 }, { age: 91, qx: 0.152848, lx: 18954 }, { age: 92, qx: 0.165158, lx: 16056 }, { age: 93, qx: 0.177821, lx: 13404 }, { age: 94, qx: 0.19079, lx: 11020 }, { age: 95, qx: 0.204018, lx: 8918 }, { age: 96, qx: 0.217462, lx: 7099 }, { age: 97, qx: 0.231078, lx: 5555 }, { age: 98, qx: 0.244827, lx: 4271 }, { age: 99, qx: 0.258673, lx: 3225 }, { age: 100, qx: 0.272583, lx: 2391 }, { age: 101, qx: 0.286529, lx: 1740 }, { age: 102, qx: 0.300486, lx: 1241 }, { age: 103, qx: 0.31443, lx: 868 }, { age: 104, qx: 0.328339, lx: 595 }, { age: 105, qx: 0.342191, lx: 399 }, { age: 106, qx: 0.355966, lx: 263 }, { age: 107, qx: 0.369646, lx: 169 }, { age: 108, qx: 0.383214, lx: 107 }, { age: 109, qx: 0.396657, lx: 66 }, { age: 110, qx: 0.409961, lx: 40 }, { age: 111, qx: 0.423115, lx: 23 }, { age: 112, qx: 0.436109, lx: 13 }, { age: 113, qx: 0.448934, lx: 8 }, { age: 114, qx: 0.461582, lx: 4 }, { age: 115, qx: 0.474046, lx: 2 }, { age: 116, qx: 0.48632, lx: 1 }, { age: 117, qx: 0.498398, lx: 1 }, { age: 118, qx: 0.510276, lx: 0 }, { age: 119, qx: 0.52195, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 }
-        ],
-        female: [
-            { age: 0, qx: 0.005118, lx: 100000 }, { age: 1, qx: 0.000355, lx: 99488 }, { age: 2, qx: 0.000219, lx: 99453 }, { age: 3, qx: 0.000161, lx: 99431 }, { age: 4, qx: 0.000127, lx: 99415 }, { age: 5, qx: 0.00011, lx: 99402 }, { age: 6, qx: 0.000101, lx: 99391 }, { age: 7, qx: 0.000095, lx: 99381 }, { age: 8, qx: 0.000091, lx: 99372 }, { age: 9, qx: 0.000088, lx: 99363 }, { age: 10, qx: 0.000088, lx: 99354 }, { age: 11, qx: 0.000094, lx: 99345 }, { age: 12, qx: 0.00011, lx: 99336 }, { age: 13, qx: 0.00014, lx: 99325 }, { age: 14, qx: 0.000185, lx: 99311 }, { age: 15, qx: 0.00024, lx: 99293 }, { age: 16, qx: 0.000299, lx: 99269 }, { age: 17, qx: 0.000355, lx: 99239 }, { age: 18, qx: 0.000401, lx: 99204 }, { age: 19, qx: 0.000434, lx: 99164 }, { age: 20, qx: 0.000458, lx: 99121 }, { age: 21, qx: 0.000475, lx: 99076 }, { age: 22, qx: 0.000489, lx: 99029 }, { age: 23, qx: 0.000501, lx: 98980 }, { age: 24, qx: 0.000514, lx: 98931 }, { age: 25, qx: 0.000529, lx: 98880 }, { age: 26, qx: 0.000547, lx: 98828 }, { age: 27, qx: 0.000569, lx: 98774 }, { age: 28, qx: 0.000595, lx: 98717 }, { age: 29, qx: 0.000624, lx: 98659 }, { age: 30, qx: 0.000656, lx: 98597 }, { age: 31, qx: 0.000693, lx: 98532 }, { age: 32, qx: 0.000735, lx: 98464 }, { age: 33, qx: 0.000783, lx: 98392 }, { age: 34, qx: 0.000838, lx: 98315 }, { age: 35, qx: 0.000901, lx: 98232 }, { age: 36, qx: 0.00097, lx: 98144 }, { age: 37, qx: 0.001045, lx: 98048 }, { age: 38, qx: 0.001124, lx: 97946 }, { age: 39, qx: 0.001206, lx: 97836 }, { age: 40, qx: 0.00129, lx: 97718 }, { age: 41, qx: 0.001379, lx: 97592 }, { age: 42, qx: 0.001476, lx: 97457 }, { age: 43, qx: 0.001584, lx: 97313 }, { age: 44, qx: 0.001705, lx: 97159 }, { age: 45, qx: 0.001839, lx: 96994 }, { age: 46, qx: 0.001988, lx: 96815 }, { age: 47, qx: 0.002154, lx: 96623 }, { age: 48, qx: 0.002341, lx: 96415 }, { age: 49, qx: 0.002551, lx: 96189 }, { age: 50, qx: 0.002787, lx: 95944 }, { age: 51, qx: 0.00305, lx: 95676 }, { age: 52, qx: 0.00334, lx: 95385 }, { age: 53, qx: 0.003652, lx: 95066 }, { age: 54, qx: 0.003984, lx: 94719 }, { age: 55, qx: 0.004337, lx: 94342 }, { age: 56, qx: 0.004711, lx: 93933 }, { age: 57, qx: 0.005106, lx: 93490 }, { age: 58, qx: 0.005523, lx: 93013 }, { age: 59, qx: 0.005963, lx: 92499 }, { age: 60, qx: 0.006429, lx: 91948 }, { age: 61, qx: 0.006927, lx: 91357 }, { age: 62, qx: 0.00747, lx: 90724 }, { age: 63, qx: 0.008069, lx: 90046 }, { age: 64, qx: 0.008742, lx: 89319 }, { age: 65, qx: 0.009503, lx: 88539 }, { age: 66, qx: 0.010359, lx: 87698 }, { age: 67, qx: 0.01131, lx: 86790 }, { age: 68, qx: 0.01236, lx: 85809 }, { age: 69, qx: 0.013511, lx: 84749 }, { age: 70, qx: 0.014781, lx: 83605 }, { age: 71, qx: 0.01619, lx: 82369 }, { age: 72, qx: 0.017772, lx: 81036 }, { age: 73, qx: 0.01957, lx: 79596 }, { age: 74, qx: 0.021631, lx: 78038 }, { age: 75, qx: 0.024003, lx: 76350 }, { age: 76, qx: 0.026727, lx: 74518 }, { age: 77, qx: 0.029841, lx: 72526 }, { age: 78, qx: 0.033379, lx: 70362 }, { age: 79, qx: 0.03738, lx: 68009 }, { age: 80, qx: 0.04188, lx: 65467 }, { age: 81, qx: 0.046914, lx: 62723 }, { age: 82, qx: 0.05251, lx: 59779 }, { age: 83, qx: 0.058686, lx: 56639 }, { age: 84, qx: 0.065452, lx: 53319 }, { age: 85, qx: 0.07281, lx: 49827 }, { age: 86, qx: 0.080749, lx: 46197 }, { age: 87, qx: 0.089255, lx: 42467 }, { age: 88, qx: 0.098311, lx: 38673 }, { age: 89, qx: 0.107897, lx: 34869 }, { age: 90, qx: 0.118002, lx: 31109 }, { age: 91, qx: 0.12861, lx: 27438 }, { age: 92, qx: 0.139706, lx: 23908 }, { age: 93, qx: 0.151278, lx: 20567 }, { age: 94, qx: 0.163316, lx: 17454 }, { age: 95, qx: 0.17581, lx: 14603 }, { age: 96, qx: 0.188748, lx: 12036 }, { age: 97, qx: 0.202123, lx: 9765 }, { age: 98, qx: 0.215923, lx: 7791 }, { age: 99, qx: 0.230138, lx: 6110 }, { age: 100, qx: 0.244758, lx: 4704 }, { age: 101, qx: 0.259771, lx: 3553 }, { age: 102, qx: 0.275165, lx: 2630 }, { age: 103, qx: 0.290929, lx: 1906 }, { age: 104, qx: 0.30705, lx: 1352 }, { age: 105, qx: 0.323517, lx: 937 }, { age: 106, qx: 0.340318, lx: 634 }, { age: 107, qx: 0.357442, lx: 418 }, { age: 108, qx: 0.374878, lx: 268 }, { age: 109, qx: 0.392615, lx: 168 }, { age: 110, qx: 0.410642, lx: 102 }, { age: 111, qx: 0.428949, lx: 60 }, { age: 112, qx: 0.447525, lx: 34 }, { age: 113, qx: 0.466359, lx: 19 }, { age: 114, qx: 0.485442, lx: 10 }, { age: 115, qx: 0.504764, lx: 5 }, { age: 116, qx: 0.524314, lx: 3 }, { age: 117, qx: 0.544083, lx: 1 }, { age: 118, qx: 0.56406, lx: 1 }, { age: 119, qx: 0.584236, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 }
-        ]
+        male: [ { age: 0, qx: 0.006082, lx: 100000 }, { age: 1, qx: 0.00041, lx: 99392 }, { age: 2, qx: 0.000263, lx: 99351 }, { age: 3, qx: 0.000201, lx: 99325 }, { age: 4, qx: 0.000155, lx: 99305 }, { age: 5, qx: 0.000135, lx: 99290 }, { age: 6, qx: 0.000125, lx: 99276 }, { age: 7, qx: 0.000118, lx: 99264 }, { age: 8, qx: 0.000111, lx: 99252 }, { age: 9, qx: 0.000103, lx: 99241 }, { age: 10, qx: 0.000099, lx: 99231 }, { age: 11, qx: 0.000104, lx: 99221 }, { age: 12, qx: 0.000125, lx: 99211 }, { age: 13, qx: 0.000171, lx: 99198 }, { age: 14, qx: 0.000244, lx: 99181 }, { age: 15, qx: 0.00034, lx: 99157 }, { age: 16, qx: 0.000451, lx: 99123 }, { age: 17, qx: 0.000566, lx: 99079 }, { age: 18, qx: 0.000673, lx: 99023 }, { age: 19, qx: 0.000762, lx: 98956 }, { age: 20, qx: 0.000839, lx: 98881 }, { age: 21, qx: 0.000908, lx: 98800 }, { age: 22, qx: 0.000962, lx: 98710 }, { age: 23, qx: 0.001001, lx: 98615 }, { age: 24, qx: 0.001033, lx: 98516 }, { age: 25, qx: 0.001064, lx: 98414 }, { age: 26, qx: 0.001095, lx: 98309 }, { age: 27, qx: 0.001126, lx: 98202 }, { age: 28, qx: 0.001158, lx: 98091 }, { age: 29, qx: 0.00119, lx: 97977 }, { age: 30, qx: 0.001222, lx: 97861 }, { age: 31, qx: 0.001257, lx: 97741 }, { age: 32, qx: 0.001297, lx: 97618 }, { age: 33, qx: 0.001344, lx: 97491 }, { age: 34, qx: 0.0014, lx: 97360 }, { age: 35, qx: 0.001469, lx: 97224 }, { age: 36, qx: 0.001551, lx: 97081 }, { age: 37, qx: 0.001646, lx: 96931 }, { age: 38, qx: 0.00175, lx: 96771 }, { age: 39, qx: 0.00186, lx: 96602 }, { age: 40, qx: 0.001974, lx: 96422 }, { age: 41, qx: 0.0021, lx: 96232 }, { age: 42, qx: 0.002243, lx: 96029 }, { age: 43, qx: 0.002409, lx: 95814 }, { age: 44, qx: 0.002601, lx: 95584 }, { age: 45, qx: 0.002816, lx: 95335 }, { age: 46, qx: 0.003051, lx: 95067 }, { age: 47, qx: 0.003306, lx: 94777 }, { age: 48, qx: 0.003586, lx: 94464 }, { age: 49, qx: 0.003899, lx: 94125 }, { age: 50, qx: 0.004253, lx: 93758 }, { age: 51, qx: 0.004652, lx: 93359 }, { age: 52, qx: 0.005088, lx: 92925 }, { age: 53, qx: 0.005553, lx: 92452 }, { age: 54, qx: 0.006041, lx: 91939 }, { age: 55, qx: 0.006549, lx: 91383 }, { age: 56, qx: 0.007083, lx: 90785 }, { age: 57, qx: 0.007653, lx: 90142 }, { age: 58, qx: 0.008271, lx: 89453 }, { age: 59, qx: 0.008945, lx: 88713 }, { age: 60, qx: 0.009665, lx: 87919 }, { age: 61, qx: 0.01041, lx: 87070 }, { age: 62, qx: 0.011165, lx: 86164 }, { age: 63, qx: 0.011945, lx: 85202 }, { age: 64, qx: 0.012781, lx: 84185 }, { age: 65, qx: 0.01371, lx: 83110 }, { age: 66, qx: 0.014761, lx: 81970 }, { age: 67, qx: 0.015941, lx: 80759 }, { age: 68, qx: 0.01726, lx: 79475 }, { age: 69, qx: 0.018728, lx: 78103 }, { age: 70, qx: 0.020361, lx: 76641 }, { age: 71, qx: 0.022192, lx: 75082 }, { age: 72, qx: 0.024249, lx: 73415 }, { age: 73, qx: 0.02657, lx: 71635 }, { age: 74, qx: 0.029193, lx: 69730 }, { age: 75, qx: 0.032159, lx: 67694 }, { age: 76, qx: 0.035489, lx: 65519 }, { age: 77, qx: 0.039213, lx: 63193 }, { age: 78, qx: 0.043372, lx: 60714 }, { age: 79, qx: 0.04802, lx: 58081 }, { age: 80, qx: 0.053224, lx: 55291 }, { age: 81, qx: 0.059048, lx: 52350 }, { age: 82, qx: 0.06554, lx: 49257 }, { age: 83, qx: 0.072714, lx: 46029 }, { age: 84, qx: 0.080572, lx: 42681 }, { age: 85, qx: 0.089104, lx: 39247 }, { age: 86, qx: 0.098292, lx: 35748 }, { age: 87, qx: 0.10811, lx: 32230 }, { age: 88, qx: 0.118521, lx: 28746 }, { age: 89, qx: 0.129481, lx: 25338 }, { age: 90, qx: 0.14094, lx: 22059 }, { age: 91, qx: 0.152848, lx: 18954 }, { age: 92, qx: 0.165158, lx: 16056 }, { age: 93, qx: 0.177821, lx: 13404 }, { age: 94, qx: 0.19079, lx: 11020 }, { age: 95, qx: 0.204018, lx: 8918 }, { age: 96, qx: 0.217462, lx: 7099 }, { age: 97, qx: 0.231078, lx: 5555 }, { age: 98, qx: 0.244827, lx: 4271 }, { age: 99, qx: 0.258673, lx: 3225 }, { age: 100, qx: 0.272583, lx: 2391 }, { age: 101, qx: 0.286529, lx: 1740 }, { age: 102, qx: 0.300486, lx: 1241 }, { age: 103, qx: 0.31443, lx: 868 }, { age: 104, qx: 0.328339, lx: 595 }, { age: 105, qx: 0.342191, lx: 399 }, { age: 106, qx: 0.355966, lx: 263 }, { age: 107, qx: 0.369646, lx: 169 }, { age: 108, qx: 0.383214, lx: 107 }, { age: 109, qx: 0.396657, lx: 66 }, { age: 110, qx: 0.409961, lx: 40 }, { age: 111, qx: 0.423115, lx: 23 }, { age: 112, qx: 0.436109, lx: 13 }, { age: 113, qx: 0.448934, lx: 8 }, { age: 114, qx: 0.461582, lx: 4 }, { age: 115, qx: 0.474046, lx: 2 }, { age: 116, qx: 0.48632, lx: 1 }, { age: 117, qx: 0.498398, lx: 1 }, { age: 118, qx: 0.510276, lx: 0 }, { age: 119, qx: 0.52195, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 } ],
+        female: [ { age: 0, qx: 0.005118, lx: 100000 }, { age: 1, qx: 0.000355, lx: 99488 }, { age: 2, qx: 0.000219, lx: 99453 }, { age: 3, qx: 0.000161, lx: 99431 }, { age: 4, qx: 0.000127, lx: 99415 }, { age: 5, qx: 0.00011, lx: 99402 }, { age: 6, qx: 0.000101, lx: 99391 }, { age: 7, qx: 0.000095, lx: 99381 }, { age: 8, qx: 0.000091, lx: 99372 }, { age: 9, qx: 0.000088, lx: 99363 }, { age: 10, qx: 0.000088, lx: 99354 }, { age: 11, qx: 0.000094, lx: 99345 }, { age: 12, qx: 0.00011, lx: 99336 }, { age: 13, qx: 0.00014, lx: 99325 }, { age: 14, qx: 0.000185, lx: 99311 }, { age: 15, qx: 0.00024, lx: 99293 }, { age: 16, qx: 0.000299, lx: 99269 }, { age: 17, qx: 0.000355, lx: 99239 }, { age: 18, qx: 0.000401, lx: 99204 }, { age: 19, qx: 0.000434, lx: 99164 }, { age: 20, qx: 0.000458, lx: 99121 }, { age: 21, qx: 0.000475, lx: 99076 }, { age: 22, qx: 0.000489, lx: 99029 }, { age: 23, qx: 0.000501, lx: 98980 }, { age: 24, qx: 0.000514, lx: 98931 }, { age: 25, qx: 0.000529, lx: 98880 }, { age: 26, qx: 0.000547, lx: 98828 }, { age: 27, qx: 0.000569, lx: 98774 }, { age: 28, qx: 0.000595, lx: 98717 }, { age: 29, qx: 0.000624, lx: 98659 }, { age: 30, qx: 0.000656, lx: 98597 }, { age: 31, qx: 0.000693, lx: 98532 }, { age: 32, qx: 0.000735, lx: 98464 }, { age: 33, qx: 0.000783, lx: 98392 }, { age: 34, qx: 0.000838, lx: 98315 }, { age: 35, qx: 0.000901, lx: 98232 }, { age: 36, qx: 0.00097, lx: 98144 }, { age: 37, qx: 0.001045, lx: 98048 }, { age: 38, qx: 0.001124, lx: 97946 }, { age: 39, qx: 0.001206, lx: 97836 }, { age: 40, qx: 0.00129, lx: 97718 }, { age: 41, qx: 0.001379, lx: 97592 }, { age: 42, qx: 0.001476, lx: 97457 }, { age: 43, qx: 0.001584, lx: 97313 }, { age: 44, qx: 0.001705, lx: 97159 }, { age: 45, qx: 0.001839, lx: 96994 }, { age: 46, qx: 0.001988, lx: 96815 }, { age: 47, qx: 0.002154, lx: 96623 }, { age: 48, qx: 0.002341, lx: 96415 }, { age: 49, qx: 0.002551, lx: 96189 }, { age: 50, qx: 0.002787, lx: 95944 }, { age: 51, qx: 0.00305, lx: 95676 }, { age: 52, qx: 0.00334, lx: 95385 }, { age: 53, qx: 0.003652, lx: 95066 }, { age: 54, qx: 0.003984, lx: 94719 }, { age: 55, qx: 0.004337, lx: 94342 }, { age: 56, qx: 0.004711, lx: 93933 }, { age: 57, qx: 0.005106, lx: 93490 }, { age: 58, qx: 0.005523, lx: 93013 }, { age: 59, qx: 0.005963, lx: 92499 }, { age: 60, qx: 0.006429, lx: 91948 }, { age: 61, qx: 0.006927, lx: 91357 }, { age: 62, qx: 0.00747, lx: 90724 }, { age: 63, qx: 0.008069, lx: 90046 }, { age: 64, qx: 0.008742, lx: 89319 }, { age: 65, qx: 0.009503, lx: 88539 }, { age: 66, qx: 0.010359, lx: 87698 }, { age: 67, qx: 0.01131, lx: 86790 }, { age: 68, qx: 0.01236, lx: 85809 }, { age: 69, qx: 0.013511, lx: 84749 }, { age: 70, qx: 0.014781, lx: 83605 }, { age: 71, qx: 0.01619, lx: 82369 }, { age: 72, qx: 0.017772, lx: 81036 }, { age: 73, qx: 0.01957, lx: 79596 }, { age: 74, qx: 0.021631, lx: 78038 }, { age: 75, qx: 0.024003, lx: 76350 }, { age: 76, qx: 0.026727, lx: 74518 }, { age: 77, qx: 0.029841, lx: 72526 }, { age: 78, qx: 0.033379, lx: 70362 }, { age: 79, qx: 0.03738, lx: 68009 }, { age: 80, qx: 0.04188, lx: 65467 }, { age: 81, qx: 0.046914, lx: 62723 }, { age: 82, qx: 0.05251, lx: 59779 }, { age: 83, qx: 0.058686, lx: 56639 }, { age: 84, qx: 0.065452, lx: 53319 }, { age: 85, qx: 0.07281, lx: 49827 }, { age: 86, qx: 0.080749, lx: 46197 }, { age: 87, qx: 0.089255, lx: 42467 }, { age: 88, qx: 0.098311, lx: 38673 }, { age: 89, qx: 0.107897, lx: 34869 }, { age: 90, qx: 0.118002, lx: 31109 }, { age: 91, qx: 0.12861, lx: 27438 }, { age: 92, qx: 0.139706, lx: 23908 }, { age: 93, qx: 0.151278, lx: 20567 }, { age: 94, qx: 0.163316, lx: 17454 }, { age: 95, qx: 0.17581, lx: 14603 }, { age: 96, qx: 0.188748, lx: 12036 }, { age: 97, qx: 0.202123, lx: 9765 }, { age: 98, qx: 0.215923, lx: 7791 }, { age: 99, qx: 0.230138, lx: 6110 }, { age: 100, qx: 0.244758, lx: 4704 }, { age: 101, qx: 0.259771, lx: 3553 }, { age: 102, qx: 0.275165, lx: 2630 }, { age: 103, qx: 0.290929, lx: 1906 }, { age: 104, qx: 0.30705, lx: 1352 }, { age: 105, qx: 0.323517, lx: 937 }, { age: 106, qx: 0.340318, lx: 634 }, { age: 107, qx: 0.357442, lx: 418 }, { age: 108, qx: 0.374878, lx: 268 }, { age: 109, qx: 0.392615, lx: 168 }, { age: 110, qx: 0.410642, lx: 102 }, { age: 111, qx: 0.428949, lx: 60 }, { age: 112, qx: 0.447525, lx: 34 }, { age: 113, qx: 0.466359, lx: 19 }, { age: 114, qx: 0.485442, lx: 10 }, { age: 115, qx: 0.504764, lx: 5 }, { age: 116, qx: 0.524314, lx: 3 }, { age: 117, qx: 0.544083, lx: 1 }, { age: 118, qx: 0.56406, lx: 1 }, { age: 119, qx: 0.584236, lx: 0 }, { age: 120, qx: 1.00000, lx: 0 } ]
     };
 
-    document.getElementById('calculateBtn').addEventListener('click', calculateAndDisplay);
+    // --- Global variable for number formatting ---
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 
-    // Run calculation once on page load with default values
+    document.getElementById('calculateBtn').addEventListener('click', calculateAndDisplay);
     document.addEventListener('DOMContentLoaded', calculateAndDisplay);
 
     function getLifeTableData(age, gender) {
         const table = lifeTable[gender];
-        // Handle ages outside the table bounds
         if (age < 0) return table[0];
-        if (age >= table.length) {
-            // For ages beyond the table, assume certain death
-            return { age: age, qx: 1.0, lx: 0 };
-        }
+        if (age >= table.length) return { age: age, qx: 1.0, lx: 0 };
         return table.find(row => row.age === age) || table[table.length - 1];
     }
 
-    function calculateAndDisplay() {
-        // --- 1. Get User Inputs and convert to numbers ---
-        const totalAssets = parseFloat(document.getElementById('assets').value);
-        const trustCost = parseFloat(document.getElementById('trustCost').value);
-        const probateFee = parseFloat(document.getElementById('probateFee').value) / 100;
-        const discountRate = parseFloat(document.getElementById('discountRate').value) / 100;
-
-        const p1 = {
-            age: parseInt(document.getElementById('p1Age').value),
-            gender: document.getElementById('p1Gender').value
-        };
-        const p2 = {
-            age: parseInt(document.getElementById('p2Age').value),
-            gender: document.getElementById('p2Gender').value
-        };
-
-        const probAccident = parseFloat(document.getElementById('accidentProb').value) / 100;
-        const probSimulGivenAccident = parseFloat(document.getElementById('simulAccidentProb').value) / 100;
-        const maxDays = parseInt(document.getElementById('maxDays').value);
-        const brokenHeartOR = parseFloat(document.getElementById('brokenHeartOR').value);
-
-        // --- 2. Core NPV Calculation ---
+    /**
+     * Calculates the present value of the expected probate cost for every future year.
+     * @returns {Array<number>} An array where each index `t` contains the PV of the event for that year.
+     */
+    function calculateAnnualPVSeries(inputs) {
+        const { p1, p2, maxDays, brokenHeartOR, probAccident, probSimulGivenAccident, futureProbateCost, discountRate } = inputs;
         const maxAge = 120;
-        let totalPV = 0;
-        const futureProbateCost = totalAssets * probateFee;
-        
-        // Get initial number of lives for probability calculations
         const l_p1_initial = getLifeTableData(p1.age, p1.gender).lx;
         const l_p2_initial = getLifeTableData(p2.age, p2.gender).lx;
+        const annualPVs = [0]; // Year 0 has no event probability
 
-        // Loop through each future year until it's highly improbable for either person to be alive
         for (let t = 1; (p1.age + t <= maxAge + 1) && (p2.age + t <= maxAge + 1); t++) {
             const currentAgeP1 = p1.age + t - 1;
             const currentAgeP2 = p2.age + t - 1;
 
-            if (l_p1_initial === 0 || l_p2_initial === 0) continue;
+            if (l_p1_initial === 0 || l_p2_initial === 0) {
+                 annualPVs.push(0);
+                 continue;
+            }
 
-            // --- Probabilities for year t ---
-            const q_p1_t = getLifeTableData(currentAgeP1, p1.gender).qx; // P(p1 dies in year t | alive at start)
-            const q_p2_t = getLifeTableData(currentAgeP2, p2.gender).qx; // P(p2 dies in year t | alive at start)
+            const q_p1_t = getLifeTableData(currentAgeP1, p1.gender).qx;
+            const q_p2_t = getLifeTableData(currentAgeP2, p2.gender).qx;
             
-            // Probability both were alive at the start of year t
             const l_p1_t_minus_1 = getLifeTableData(currentAgeP1, p1.gender).lx;
             const l_p2_t_minus_1 = getLifeTableData(currentAgeP2, p2.gender).lx;
             const probBothAliveStartOfYear = (l_p1_t_minus_1 / l_p1_initial) * (l_p2_t_minus_1 / l_p2_initial);
             
-            if (isNaN(probBothAliveStartOfYear) || probBothAliveStartOfYear <= 0) break;
+            if (isNaN(probBothAliveStartOfYear) || probBothAliveStartOfYear <= 0) {
+                annualPVs.push(0);
+                continue;
+            }
 
-            // Probability of exactly one death during year t, given both alive at start
             const probExactlyOneDies = (q_p1_t * (1 - q_p2_t)) + (q_p2_t * (1 - q_p1_t));
-            
-            // Overall probability of the first death occurring in year t
             const probFirstDeathInYearT = probBothAliveStartOfYear * probExactlyOneDies;
 
-            if (probFirstDeathInYearT === 0) continue;
-
-            // --- Probability of near-simultaneous death, given first death in year t ---
+            if (probFirstDeathInYearT === 0) {
+                annualPVs.push(0);
+                continue;
+            }
             
-            // P(SimulDeath | OtherCause) - Calculate for both potential survivors
             const q_survivor1 = getLifeTableData(currentAgeP1, p1.gender).qx;
             const q_survivor2 = getLifeTableData(currentAgeP2, p2.gender).qx;
 
-            // P(survivor dies in N days) = 1 - (1 - annual_q)^(N/365.25)
             const probDeathInNdays1 = 1 - Math.pow(1 - q_survivor1, maxDays / 365.25);
             const probDeathInNdays2 = 1 - Math.pow(1 - q_survivor2, maxDays / 365.25);
             
-            // Apply Broken Heart odds ratio
-            const odds1 = probDeathInNdays1 / (1 - probDeathInNdays1);
-            const odds2 = probDeathInNdays2 / (1 - probDeathInNdays2);
+            const odds1 = probDeathInNdays1 > 0.99999 ? 1e5 : probDeathInNdays1 / (1 - probDeathInNdays1);
+            const odds2 = probDeathInNdays2 > 0.99999 ? 1e5 : probDeathInNdays2 / (1 - probDeathInNdays2);
+            
             const probSimulGivenOtherCause1 = (odds1 * brokenHeartOR) / (1 + (odds1 * brokenHeartOR));
             const probSimulGivenOtherCause2 = (odds2 * brokenHeartOR) / (1 + (odds2 * brokenHeartOR));
             
-            // Weighted average of the two survivor probabilities
-            const weight1 = (q_p2_t * (1 - q_p1_t)) / probExactlyOneDies; // p2 dies first, p1 is survivor
-            const weight2 = (q_p1_t * (1 - q_p2_t)) / probExactlyOneDies; // p1 dies first, p2 is survivor
+            const weight1 = probExactlyOneDies > 0 ? (q_p2_t * (1 - q_p1_t)) / probExactlyOneDies : 0;
+            const weight2 = probExactlyOneDies > 0 ? (q_p1_t * (1 - q_p2_t)) / probExactlyOneDies : 0;
             const probSimulGivenOtherCause = (probSimulGivenOtherCause1 * weight1) + (probSimulGivenOtherCause2 * weight2);
             
             const probSimulDeathOverall = (probAccident * probSimulGivenAccident) + ((1 - probAccident) * probSimulGivenOtherCause);
 
-            // --- Expected Cost and PV for Year t ---
             const annualProbOfEvent = probFirstDeathInYearT * probSimulDeathOverall;
             const expectedCostInYearT = futureProbateCost * annualProbOfEvent;
             const pvForYearT = expectedCostInYearT / Math.pow(1 + discountRate, t);
-
-            totalPV += pvForYearT;
+            
+            annualPVs.push(pvForYearT);
         }
+        return annualPVs;
+    }
 
-        const npv = totalPV - trustCost;
+    function calculateAndDisplay() {
+        // --- 1. Get User Inputs ---
+        const inputs = {
+            totalAssets: parseFloat(document.getElementById('assets').value),
+            trustCost: parseFloat(document.getElementById('trustCost').value),
+            probateFee: parseFloat(document.getElementById('probateFee').value) / 100,
+            discountRate: parseFloat(document.getElementById('discountRate').value) / 100,
+            p1: { age: parseInt(document.getElementById('p1Age').value), gender: document.getElementById('p1Gender').value },
+            p2: { age: parseInt(document.getElementById('p2Age').value), gender: document.getElementById('p2Gender').value },
+            probAccident: parseFloat(document.getElementById('accidentProb').value) / 100,
+            probSimulGivenAccident: parseFloat(document.getElementById('simulAccidentProb').value) / 100,
+            maxDays: parseInt(document.getElementById('maxDays').value),
+            brokenHeartOR: parseFloat(document.getElementById('brokenHeartOR').value),
+        };
+        inputs.futureProbateCost = inputs.totalAssets * inputs.probateFee;
 
-        // --- 3. Display Results ---
+        // --- 2. Calculate the PV series for all future years ---
+        const annualPVs = calculateAnnualPVSeries(inputs);
+        const totalPVOfBenefit = annualPVs.reduce((sum, pv) => sum + pv, 0);
+
+        // --- 3. Calculate NPV for creating the trust today (Year 0) ---
+        const npvToday = totalPVOfBenefit - inputs.trustCost;
+        
+        // --- 4. Calculate NPV for creating the trust in each future year ---
+        const optimizationResults = [];
+        let pvOfRiskIncurred = 0;
+        const optimizationHorizon = 120; // Look 120 years into the future
+
+        for (let creationYear = 0; creationYear < optimizationHorizon && creationYear < annualPVs.length; creationYear++) {
+            // Probability both alive at start of creationYear
+            const l_p1_initial = getLifeTableData(inputs.p1.age, inputs.p1.gender).lx;
+            const l_p2_initial = getLifeTableData(inputs.p2.age, inputs.p2.gender).lx;
+            const l_p1_creation = getLifeTableData(inputs.p1.age + creationYear, inputs.p1.gender).lx;
+            const l_p2_creation = getLifeTableData(inputs.p2.age + creationYear, inputs.p2.gender).lx;
+            const probBothAliveAtCreation = (l_p1_creation / l_p1_initial) * (l_p2_creation / l_p2_initial);
+
+            // Benefit is the total potential benefit minus the risk you've already incurred by waiting
+            const pvOfBenefitAfterCreation = totalPVOfBenefit - pvOfRiskIncurred;
+
+            // Cost is the trust setup cost, discounted and multiplied by probability both alive
+            const pvOfTrustCost = (inputs.trustCost / Math.pow(1 + inputs.discountRate, creationYear)) * probBothAliveAtCreation;
+
+            const npvForCreationYear = pvOfBenefitAfterCreation - pvOfTrustCost;
+
+            optimizationResults.push({
+                year: creationYear,
+                age1: inputs.p1.age + creationYear,
+                age2: inputs.p2.age + creationYear,
+                npv: npvForCreationYear
+            });
+
+            // Add this year's risk to the cumulative risk for the next iteration
+            pvOfRiskIncurred += annualPVs[creationYear + 1] || 0;
+        }
+        
+        // --- 5. Find the optimal result ---
+        const optimalResult = optimizationResults.reduce((max, current) => current.npv > max.npv ? current : max, optimizationResults[0]);
+
+        // --- 6. Display all results ---
+        displayResults(npvToday, optimalResult, optimizationResults);
+    }
+
+    function displayResults(npvToday, optimalResult, optimizationResults) {
+        // Display NPV for today
         const resultDiv = document.getElementById('result');
         const resultValue = document.getElementById('result-value');
+        resultValue.textContent = formatter.format(npvToday);
+        resultValue.style.color = npvToday >= 0 ? 'rgb(22 163 74)' : 'rgb(220 38 38)';
+        resultDiv.style.display = 'block';
+
+        // Display optimization summary
+        const optimizationDiv = document.getElementById('optimization-result');
+        const optimizationSummary = document.getElementById('optimization-summary');
         
-        const formatter = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+        optimizationSummary.innerHTML = `The highest NPV of <strong class="text-indigo-900">${formatter.format(optimalResult.npv)}</strong> is achieved by creating the trust in <strong>${optimalResult.year} years</strong>, when Person 1 is age <strong>${optimalResult.age1}</strong> and Person 2 is age <strong>${optimalResult.age2}</strong>.`;
+
+        // Populate optimization table
+        const tableBody = document.getElementById('optimization-table-body');
+        tableBody.innerHTML = ''; // Clear previous results
+        
+        optimizationResults.forEach(res => {
+            const isOptimal = res.year === optimalResult.year;
+            const row = document.createElement('tr');
+            row.className = isOptimal ? 'bg-indigo-100 font-bold' : '';
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">${res.year}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${res.age1}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${res.age2}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">${formatter.format(res.npv)}</td>
+            `;
+            tableBody.appendChild(row);
         });
 
-        resultValue.textContent = formatter.format(npv);
-        resultValue.style.color = npv >= 0 ? 'rgb(22 163 74)' : 'rgb(220 38 38)'; // green-600 or red-600
-        resultDiv.style.display = 'block';
+        optimizationDiv.style.display = 'block';
     }
+
 </script>
 
 </body>
