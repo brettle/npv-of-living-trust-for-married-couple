@@ -320,17 +320,24 @@
         // --- 4. Calculate NPV for creating the trust in each future year ---
         const optimizationResults = [];
         let pvOfRiskIncurred = 0;
-        const optimizationHorizon = 40; // Look 40 years into the future
+        const optimizationHorizon = 120; // Look 120 years into the future
 
         for (let creationYear = 0; creationYear < optimizationHorizon && creationYear < annualPVs.length; creationYear++) {
+            // Probability both alive at start of creationYear
+            const l_p1_initial = getLifeTableData(inputs.p1.age, inputs.p1.gender).lx;
+            const l_p2_initial = getLifeTableData(inputs.p2.age, inputs.p2.gender).lx;
+            const l_p1_creation = getLifeTableData(inputs.p1.age + creationYear, inputs.p1.gender).lx;
+            const l_p2_creation = getLifeTableData(inputs.p2.age + creationYear, inputs.p2.gender).lx;
+            const probBothAliveAtCreation = (l_p1_creation / l_p1_initial) * (l_p2_creation / l_p2_initial);
+
             // Benefit is the total potential benefit minus the risk you've already incurred by waiting
             const pvOfBenefitAfterCreation = totalPVOfBenefit - pvOfRiskIncurred;
-            
-            // Cost is the trust setup cost, discounted to today's value
-            const pvOfTrustCost = inputs.trustCost / Math.pow(1 + inputs.discountRate, creationYear);
+
+            // Cost is the trust setup cost, discounted and multiplied by probability both alive
+            const pvOfTrustCost = (inputs.trustCost / Math.pow(1 + inputs.discountRate, creationYear)) * probBothAliveAtCreation;
 
             const npvForCreationYear = pvOfBenefitAfterCreation - pvOfTrustCost;
-            
+
             optimizationResults.push({
                 year: creationYear,
                 age1: inputs.p1.age + creationYear,
