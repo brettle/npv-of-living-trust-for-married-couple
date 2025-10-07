@@ -190,8 +190,20 @@
                 </div>
                 <div class="explanation-section">
                     <h3 class="text-lg font-semibold mb-2 text-slate-800">3. Calculating the Optimal Age</h3>
-                     <p>To find the optimal age, the calculator computes the NPV for creating the trust in each future year. When calculating the NPV for a future year, it accounts for the risk of the event occurring *before* the trust is created. This "cost of waiting" is subtracted from the potential future benefits.</p>
+                    <p>To find the optimal age, the calculator computes the NPV for creating the trust in each future year. When calculating the NPV for a future year, it accounts for the risk of the event occurring <em>before</em> the trust is created. This "cost of waiting" is subtracted from the potential future benefits.</p>
                     <p>The optimal age is the point where the NPV is highest, balancing the benefit of deferring the setup cost against the increasing risk of incurring probate fees over time.</p>
+                    <div class="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <h4 class="font-semibold text-indigo-800 mb-2">Why the Optimal Age Is Independent of Current Age</h4>
+                        <p>
+                            Mathematically, the NPV for creating the trust in <em>t</em> years depends only on the ages at trust creation, not on the starting ages or waiting period separately. 
+                            Let <strong>a</strong> be the current age and <strong>t</strong> the years until trust creation. All probabilities and present values in the formula depend on <strong>a + t</strong>, so the NPV can be written as a function of age at trust creation: <strong>NPV(a, t) = f(a + t)</strong>.
+                        </p>
+                        <p>
+                            Maximizing NPV with respect to <em>t</em> is equivalent to maximizing <strong>f(x)</strong> with respect to <strong>x = a + t</strong>. Thus, the optimal age <strong>x*</strong> is the same for all starting ages, and the optimal waiting period <strong>t*</strong> is simply <strong>x* – a</strong>. 
+                            <br>
+                            <span class="text-indigo-700 font-medium">Therefore, the optimal age to create the trust is independent of the couple's current age.</span>
+                        </p>
+                    </div>
                 </div>
                 <div class="citation border-t-2 border-gray-200 pt-4 mt-6">
                     <p class="text-sm text-gray-600"><strong>Actuarial Data Source:</strong> The probabilities of death and survival are based on the <strong>2019 Period Life Table for the Social Security Administration</strong>. These tables provide the probability of a person at a certain age dying before their next birthday.</p>
